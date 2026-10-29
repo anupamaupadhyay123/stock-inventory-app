@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login - Stock Inventory</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#e8eefc,#f6f1ff);color:#1d2a44;padding:16px}
+.card{background:#fff;width:400px;max-width:100%;border-radius:18px;padding:32px 28px;box-shadow:0 10px 40px rgba(40,60,130,.15)}
+.logo{display:block;margin:0 auto 10px;max-height:70px;max-width:220px}
+h1{margin:0;text-align:center;font-size:21px;color:#2f5fd0}
+.sub{text-align:center;color:#6b7a99;font-size:13px;margin:4px 0 20px}
+h2{font-size:17px;margin:0 0 4px}
+p.hint{color:#6b7a99;font-size:13px;margin:0 0 6px}
+label{font-size:12px;color:#6b7a99;display:block;margin:12px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:11px;border:1px solid #d5dcec;border-radius:10px;font-size:15px}
+input:focus{outline:2px solid #bcd0ff;border-color:#2f5fd0}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7a99;margin-top:10px}
+button.main{width:100%;margin-top:18px;background:#2f5fd0;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
+a.lnk{color:#2f5fd0;font-size:13px;cursor:pointer}
+.row{display:flex;justify-content:space-between;margin-top:14px}
+.msg{margin-top:14px;font-size:13.5px;text-align:center;min-height:18px}
+.msg.err{color:#d64545}.msg.ok{color:#1f9d63}
+.foot{text-align:center;color:#9aa6c2;font-size:12px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="/mainlogo.png" alt="ROF" style="display:block;margin:0 auto 14px;width:150px;max-width:70%;">
+  <h1>Stock Inventory</h1>
+  <div class="sub">ROF Group</div>
+
+  <!-- LOGIN -->
+  <div id="v-login">
+    <form onsubmit="doLogin();return false">
+      <label>Username</label><input type="text" id="lUser" autocomplete="username">
+      <label>Password</label><input type="password" id="lPass" autocomplete="current-password">
+      <label class="chk"><input type="checkbox" onchange="showPw(this,'lPass')"> Show password</label>
+      <button class="main" type="submit">Login</button>
+    </form>
+    <div class="row"><a class="lnk" onclick="view('forgot')">Forgot password?</a><a class="lnk" onclick="view('reset')">I have a reset code</a></div>
+  </div>
+
+  <!-- FORGOT PASSWORD -->
+  <div id="v-forgot" style="display:none">
+    <h2>Forgot Password</h2>
+    <p class="hint">Enter your username. A request will go to the admin (IT), who will give you a reset code.</p>
+    <form onsubmit="doForgot();return false">
+      <label>Username</label><input type="text" id="fUser">
+      <button class="main" type="submit">Send Request</button>
+    </form>
+    <div class="row"><a class="lnk" onclick="view('login')">Back to Login</a><a class="lnk" onclick="view('reset')">I have a reset code</a></div>
+  </div>
+
+  <!-- RESET PASSWORD -->
+  <div id="v-reset" style="display:none">
+    <h2>Reset Password</h2>
+    <p class="hint">Enter the code given by the admin and set a new password.</p>
+    <form onsubmit="doReset();return false">
+      <label>Username</label><input type="text" id="rUser">
+      <label>Reset Code</label><input type="text" id="rCode" maxlength="6">
+      <label>New Password</label><input type="password" id="rPass">
+      <label>Confirm New Password</label><input type="password" id="rPass2">
+      <label class="chk"><input type="checkbox" onchange="showPw(this,'rPass','rPass2')"> Show password</label>
+      <button class="main" type="submit">Reset Password</button>
+    </form>
+    <div class="row"><a class="lnk" onclick="view('login')">Back to Login</a></div>
+  </div>
+
+  <!-- NEW PASSWORD (pehli baar login) -->
+  <div id="v-new" style="display:none">
+    <h2>Set New Password</h2>
+    <p class="hint">Use at least 8 characters with letters and numbers.</p>
+    <form onsubmit="doNew();return false">
+      <label>New Password</label><input type="password" id="nPass">
+      <label>Confirm New Password</label><input type="password" id="nPass2">
+      <label class="chk"><input type="checkbox" onchange="showPw(this,'nPass','nPass2')"> Show password</label>
+      <button class="main" type="submit">Save Password</button>
+    </form>
+  </div>
+
+  <div class="msg" id="msg"></div>
+  <div class="foot">IT Department · ROF Group</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function view(n) {
+  ['login','forgot','reset','new'].forEach(x => $('v-' + x).style.display = (x === n) ? 'block' : 'none');
+  msg('', '');
+}
+function msg(t, kind) { $('msg').textContent = t; $('msg').className = 'msg ' + (kind || ''); }
+function showPw(cb) { for (let i = 1; i < arguments.length; i++) $(arguments[i]).type = cb.checked ? 'text' : 'password'; }
+
+async function post(path, body) {
+  const r = await fetch('/api/auth' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Error');
+  return d;
+}
+
+async function doLogin() {
+  try {
+    const d = await post('/login', { username: $('lUser').value, password: $('lPass').value });
+    if (d.must_change) { view('new'); msg('Please set a new password to continue.', 'ok'); }
+    else location.href = 'index.html';
+  } catch (e) { msg(e.message, 'err'); }
+}
+
+async function doNew() {
+  if ($('nPass').value !== $('nPass2').value) return msg('Passwords do not match', 'err');
+  try {
+    await post('/change-password', { new_password: $('nPass').value });
+    location.href = 'index.html';
+  } catch (e) { msg(e.message, 'err'); }
+}
+
+async function doForgot() {
+  try {
+    const d = await post('/forgot', { username: $('fUser').value });
+    msg(d.message, 'ok');
+    $('rUser').value = $('fUser').value;
+  } catch (e) { msg(e.message, 'err'); }
+}
+
+async function doReset() {
+  if ($('rPass').value !== $('rPass2').value) return msg('Passwords do not match', 'err');
+  try {
+    await post('/reset', { username: $('rUser').value, code: $('rCode').value, new_password: $('rPass').value });
+    $('lUser').value = $('rUser').value;
+    view('login');
+    msg('Password changed. Please login with your new password.', 'ok');
+  } catch (e) { msg(e.message, 'err'); }
+}
+
+// Pehle se login ho to seedha andar bhejo
+fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(u => {
+  if (!u) return;
+  if (u.must_change) { view('new'); msg('Please set a new password to continue.', 'ok'); }
+  else location.href = 'index.html';
+});
+</script>
+</body>
+</html>

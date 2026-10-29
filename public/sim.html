@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIM Tracking | ROF</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#eef3fb;color:#1c2b3f;font-size:14px;display:flex;min-height:100vh}
+  .side{width:260px;flex-shrink:0;background:linear-gradient(180deg,#1a6fd8 0%,#2a82e6 55%,#6aaef2 100%);color:#fff;padding:22px 14px;border-radius:0 18px 18px 0;position:sticky;top:0;height:100vh;overflow:auto}
+  .side .logo{text-align:center;margin-bottom:14px}
+  .side .logo img{max-width:150px}
+  .side h2{font-size:19px;margin:10px 6px 18px;display:flex;align-items:center;gap:8px}
+  .side a{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:6px;border-radius:10px;color:#fff;text-decoration:none;font-weight:600}
+  .side a:hover{background:rgba(255,255,255,.14)}
+  .side a.active{background:rgba(255,255,255,.26)}
+  .main{flex:1;padding:22px 28px;min-width:0}
+  .main h1{margin:0 0 18px;font-size:22px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:20px}
+  .card{background:#fff;border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(30,80,160,.08)}
+  .ic{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .card .l{font-size:12px;color:#6b7a90}
+  .card .v{font-size:26px;font-weight:700}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .bar input,.bar select{padding:9px 12px;border:1px solid #c8d4e6;border-radius:8px;background:#fff}
+  .bar input{min-width:260px}
+  button{cursor:pointer;border:0;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600}
+  .btn{background:#1f6fd6;color:#fff}
+  .btn2{background:#e3eefc;color:#1f6fd6}
+  .danger{background:#fde2e2;color:#a12020}
+  .sm{padding:4px 10px;font-size:12px;margin:1px}
+  .tbl{overflow-x:auto;background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(30,80,160,.08)}
+  table{border-collapse:collapse;width:100%;min-width:1100px}
+  th{background:#1f6fd6;color:#fff;text-align:left;padding:11px 12px;font-size:12.5px;white-space:nowrap}
+  th:first-child{border-radius:14px 0 0 0}
+  th:last-child{border-radius:0 14px 0 0}
+  td{padding:10px 12px;border-bottom:1px solid #e8eef8;vertical-align:top}
+  tr:nth-child(even) td{background:#f7faff}
+  small{color:#6b7a90}
+  .tag{padding:2px 9px;border-radius:10px;font-size:12px;font-weight:600;white-space:nowrap}
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10}
+  .ov.show{display:flex}
+  .modal{background:#fff;border-radius:14px;width:860px;max-width:95vw;max-height:90vh;overflow:auto}
+  .mh{background:#1f6fd6;color:#fff;padding:13px 18px;display:flex;justify-content:space-between;font-weight:600}
+  .mb{padding:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid label{display:flex;flex-direction:column;font-size:12px;color:#506078;gap:3px}
+  .grid input,.grid select{padding:8px;border:1px solid #c8d4e6;border-radius:8px;font-size:13px}
+  .full{grid-column:1/3}
+  .msg{color:#a12020;margin-top:8px;font-size:13px}
+  .fs{position:fixed;inset:0;background:#eef3fb;z-index:20;display:none;overflow:auto}
+  .fs.show{display:block}
+  .fs-head{background:#1f6fd6;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;font-size:18px;font-weight:700;position:sticky;top:0;z-index:2}
+  .fs-body{padding:22px 28px}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .dcard{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(30,80,160,.08)}
+  .dcard h3{margin:0 0 10px;font-size:15px;color:#1f6fd6}
+  .kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f9}
+  .kv span{color:#6b7a90}
+  .ov{z-index:30}
+  #rows td:first-child{cursor:pointer}
+  #rows td:first-child b{color:#1f6fd6;text-decoration:underline}
+</style>
+<script>
+  if (location.search.indexOf('embed') > -1) {
+    document.write('<style>.side{display:none!important}body{background:transparent!important}</style>');
+  }
+</script>
+</head>
+<body>
+
+<div class="side">
+  <div class="logo"><img src="logo.png" alt="ROF" onerror="this.style.display='none'"></div>
+  <h2>📦 Stock Inventory</h2>
+  <a href="index.html">📊 Dashboard</a>
+  <a href="index.html">⬇️ Stock In</a>
+  <a href="index.html">⬆️ Stock Out</a>
+  <a href="index.html">📋 Current Stock</a>
+  <a href="sim.html" class="active">📱 SIM Tracking</a>
+  <a href="index.html">👥 Users</a>
+  <a href="index.html">🔑 Change Password</a>
+</div>
+
+<div class="main">
+  <h1>SIM Tracking</h1>
+  <div class="cards" id="cards"></div>
+  <div class="bar">
+    <input id="q" type="hidden">
+    <select id="fs" onchange="load()">
+      <option value="">All Status</option><option>In Stock</option><option>With Employee</option>
+      <option>At Site</option><option>Deactivated</option><option>Lost</option>
+    </select>
+    <select id="fv" onchange="load()">
+      <option value="">All Verification</option><option>Pending</option>
+      <option>Verified</option><option>Not Reachable</option>
+    </select>
+    
+    <button class="btn" onclick="openSim()">+ Add SIM</button>
+    <button class="btn2" onclick="exportCsv()">Export Excel</button>
+    <button class="btn2" onclick="openImport()">Import Excel</button>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr>
+        <th>Mobile / Serial</th><th>Operator / Plan</th><th>Status</th><th>Assigned To</th>
+        <th>Issue Date</th><th>Call Verification</th><th>Docs</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="fs" id="dpop">
+  <div class="fs-head">
+    <span id="fs_title"></span>
+    <button class="btn2" onclick="closeDetail()">✕ Close</button>
+  </div>
+  <div class="fs-body" id="fs_body"></div>
+</div>
+
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="mh"><span id="mt"></span><span style="cursor:pointer" onclick="closeM()">✕</span></div>
+    <div class="mb" id="mbd"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/sims';
+const DOC_TYPES = ['Aadhaar Card','PAN Card','Photo','Activation / CAF Form','Authorization Letter','Employee ID Card','Other'];
+const COLORS = {'In Stock':'#e3eefc','With Employee':'#d9ead3','At Site':'#cfe2f3','Deactivated':'#eeeeee','Lost':'#f4cccc','Verified':'#d9ead3','Pending':'#fff2cc','Not Reachable':'#f4cccc'};
+let sims = [];
+
+const $ = id => document.getElementById(id);
+const val = id => $(id).value.trim();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toISOString().slice(0, 10);
+const fd = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('-') : (d || '');
+const tag = t => `<span class="tag" style="background:${COLORS[t] || '#eee'}">${esc(t)}</span>`;
+
+// Change this if your login token is stored under a different name
+function authHeaders() {
+  const t = localStorage.getItem('token');
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+
+async function api(url, opts = {}) {
+  opts.headers = Object.assign({}, authHeaders(), opts.headers || {});
+  if (opts.body && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  return data;
+}
+
+function params() {
+  return new URLSearchParams({ search: $('q').value, status: $('fs').value, verification: $('fv').value });
+}
+
+async function load() {
+  try {
+    const [s, list] = await Promise.all([api(API + '/summary'), api(API + '?' + params())]);
+    sims = list;
+    renderCards(s);
+    renderRows();
+  } catch (e) { alert(e.message); }
+}
+
+function renderCards(s) {
+  const n = k => Number(s[k] || 0);
+  const c = [
+    ['Total SIMs', n('total'), '📱', '#e3eefc'],
+    ['In Stock', n('in_stock'), '📦', '#e3eefc'],
+    ['With Employees', n('with_employee'), '👤', '#e6f4ea'],
+    ['At Sites', n('at_site'), '📍', '#e3eefc'],
+    ['Verified', n('verified'), '✅', '#e6f4ea'],
+    ['Pending Verification', n('pending'), '⏳', '#fff4d6']
+  ];
+  $('cards').innerHTML = c.map(x => `<div class="card"><div class="ic" style="background:${x[3]}">${x[2]}</div><div><div class="l">${x[0]}</div><div class="v">${x[1]}</div></div></div>`).join('');
+}
+
+function renderRows() {
+  if (!sims.length) {
+    $('rows').innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px">No SIMs found</td></tr>';
+    return;
+  }
+  $('rows').innerHTML = sims.map(s => {
+    const assigned = s.assignment_id;
+    const who = !assigned ? '-' : s.assigned_type === 'Employee'
+      ? `${esc(s.employee_name)}<br><small>${esc(s.employee_id || '')} ${esc(s.department || '')}</small>`
+      : `${esc(s.site_name)}<br><small>${esc([s.location, s.contact_person ? 'Contact: ' + s.contact_person : '', s.device].filter(Boolean).join(' · '))}</small>`;
+    const ver = assigned
+      ? `${tag(s.verification_status)}<br><small>${esc(s.verified_by || '')} ${esc(fd(s.verified_on))}</small>`
+      : '-';
+    return `<tr>
+      <td><b>${esc(s.mobile_no)}</b><br><small>${esc(s.sim_serial || '')}</small></td>
+      <td>${esc(s.operator || '')}<br><small>${esc(s.plan_type || '')} ${esc(s.plan_details || '')}</small></td>
+      <td>${tag(s.status)}</td>
+      <td>${who}</td>
+      <td>${esc(fd(s.issue_date) || '-')}</td>
+      <td>${ver}</td>
+      <td>${s.doc_count}</td>
+      <td>
+        <button class="btn sm" onclick="openAssign(${s.id})">${assigned ? 'Re-assign' : 'Assign'}</button>
+        ${assigned ? `<button class="btn2 sm" onclick="openVerify(${s.id})">Verify</button><button class="btn2 sm" onclick="returnSim(${s.id})">Return</button>` : ''}
+        <button class="btn2 sm" onclick="openDocs(${s.id})">Docs</button>
+        <button class="btn2 sm" onclick="openSim(${s.id})">Edit</button>
+        <button class="danger sm" onclick="delSim(${s.id})">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openM(title, html) { $('mt').textContent = title; $('mbd').innerHTML = html; $('ov').classList.add('show'); }
+function closeM() { $('ov').classList.remove('show'); }
+const opts = (arr, sel) => arr.map(o => `<option ${sel === o ? 'selected' : ''}>${o}</option>`).join('');
+
+// ---------- Add / Edit SIM ----------
+function openSim(id) {
+  const s = sims.find(x => x.id === id) || {};
+  openM(id ? 'Edit SIM' : 'Add SIM', `
+    <div class="grid">
+      <label>Mobile No *<input id="f_mobile" value="${esc(s.mobile_no)}"></label>
+      <label>SIM Serial (ICCID)<input id="f_serial" value="${esc(s.sim_serial)}"></label>
+      <label>Operator<select id="f_op">${opts(['Airtel','Jio','Vi','BSNL','Other'], s.operator)}</select></label>
+      <label>Plan Type<select id="f_pt">${opts(['Prepaid','Postpaid'], s.plan_type)}</select></label>
+      <label>Plan Details<input id="f_plan" value="${esc(s.plan_details)}"></label>
+      <label>Purchase Date<input type="date" id="f_pd" value="${esc(s.purchase_date)}"></label>
+      ${id ? `<label class="full">Status<select id="f_st">${opts(['In Stock','With Employee','At Site','Deactivated','Lost'], s.status)}</select></label>` : ''}
+    </div>
+    <div class="msg" id="msg"></div><br>
+    <button class="btn" onclick="saveSim(${id || 0})">Save</button>`);
+}
+
+async function saveSim(id) {
+  const body = {
+    mobile_no: val('f_mobile'), sim_serial: val('f_serial'), operator: val('f_op'),
+    plan_type: val('f_pt'), plan_details: val('f_plan'), purchase_date: val('f_pd')
+  };
+  if ($('f_st')) body.status = val('f_st');
+  try {
+    await api(id ? `${API}/${id}` : API, { method: id ? 'PUT' : 'POST', body });
+    closeM(); load();
+  } catch (e) { $('msg').textContent = e.message; }
+}
+
+async function delSim(id) {
+  if (!confirm('Delete this SIM along with its history and documents?')) return;
+  try { await api(`${API}/${id}`, { method: 'DELETE' }); load(); } catch (e) { alert(e.message); }
+}
+
+// ---------- Assign / Return ----------
+function openAssign(id) {
+  const s = sims.find(x => x.id === id);
+  openM('Assign SIM - ' + s.mobile_no, `
+    <div class="grid">
+      <label class="full">Assign To
+        <select id="a_type" onchange="togType()"><option>Employee</option><option>Site</option></select>
+      </label>
+      <label class="e">Employee Id<input id="a_eid"></label>
+      <label class="e">Employee Name *<input id="a_en"></label>
+      <label class="e">Department<input id="a_dep"></label>
+      <label class="s" style="display:none">Site Name *<input id="a_site"></label>
+<label class="s" style="display:none">Site Contact Person<input id="a_contact" placeholder="Admin / in-charge name"></label>
+      <label class="s" style="display:none">Location<input id="a_loc" placeholder="Area / City / Address"></label>
+      <label>Device (CCTV / Router / Phone...)<input id="a_dev"></label>
+      <label>Issue Date<input type="date" id="a_date" value="${today()}"></label>
+      <label class="full">Remarks<input id="a_rem"></label>
+    </div>
+    <div class="msg" id="msg"></div><br>
+    <button class="btn" onclick="saveAssign(${id})">Assign</button>`);
+}
+
+function togType() {
+  const emp = val('a_type') === 'Employee';
+  document.querySelectorAll('.e').forEach(x => x.style.display = emp ? '' : 'none');
+  document.querySelectorAll('.s').forEach(x => x.style.display = emp ? 'none' : '');
+}
+
+async function saveAssign(id) {
+  const body = {
+    assigned_type: val('a_type'), employee_id: val('a_eid'), employee_name: val('a_en'),
+    department: val('a_dep'), site_name: val('a_site'), contact_person: val('a_contact'), location: val('a_loc'), device: val('a_dev'),
+    issue_date: val('a_date'), remarks: val('a_rem')
+  };
+  try { await api(`${API}/${id}/assign`, { method: 'POST', body }); closeM(); load(); }
+  catch (e) { $('msg').textContent = e.message; }
+}
+
+async function returnSim(id) {
+  if (!confirm('Has the SIM been returned to stock?')) return;
+  try { await api(`${API}/${id}/return`, { method: 'POST' }); load(); } catch (e) { alert(e.message); }
+}
+
+// ---------- Call verification ----------
+function openVerify(id) {
+  const s = sims.find(x => x.id === id);
+  openM('Call Verification - ' + s.mobile_no, `
+    <div class="grid">
+      <label class="full">Result
+        <select id="v_st">${opts(['Pending','Verified','Not Reachable'], s.verification_status)}</select>
+      </label>
+      <label>Verified By<input id="v_by" value="${esc(s.verified_by)}"></label>
+      <label>Date<input type="date" id="v_on" value="${esc(s.verified_on || today())}"></label>
+      <label class="full">Remarks<input id="v_rem" value="${esc(s.verification_remarks)}"></label>
+    </div>
+    <div class="msg" id="msg"></div><br>
+    <button class="btn" onclick="saveVerify(${id})">Save</button>`);
+}
+
+async function saveVerify(id) {
+  const body = {
+    verification_status: val('v_st'), verified_by: val('v_by'),
+    verified_on: val('v_on'), verification_remarks: val('v_rem')
+  };
+  try { await api(`${API}/${id}/verify`, { method: 'POST', body }); closeM(); load(); }
+  catch (e) { $('msg').textContent = e.message; }
+}
+
+// ---------- Documents ----------
+async function openDocs(id) {
+  const s = sims.find(x => x.id === id);
+  let docs = [];
+  try { docs = await api(`${API}/${id}/documents`); } catch (e) { alert(e.message); return; }
+  const list = docs.length
+    ? docs.map(d => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e8eef8">
+        <span><b>${esc(d.doc_type)}</b> <small>${esc(fd(d.uploaded_on))}</small></span>
+        <span><button class="btn2 sm" onclick="viewDoc(${d.id})">View</button>
+        <button class="danger sm" onclick="delDoc(${d.id},${id})">Delete</button></span></div>`).join('')
+    : '<p>No documents uploaded yet</p>';
+  openM('Documents - ' + s.mobile_no, `
+    ${list}
+    <div class="grid" style="margin-top:14px">
+      <label>Document Type<select id="d_type">${DOC_TYPES.map(t => `<option>${t}</option>`).join('')}</select></label>
+      <label>File (PDF/JPG/PNG, max 5MB)<input type="file" id="d_file" accept=".pdf,.jpg,.jpeg,.png"></label>
+    </div>
+    <div class="msg" id="msg"></div><br>
+    <button class="btn" onclick="upDoc(${id})">Upload</button>`);
+}
+
+async function upDoc(id) {
+  const f = $('d_file').files[0];
+  if (!f) { $('msg').textContent = 'Please select a file first'; return; }
+  const fd = new FormData();
+  fd.append('doc_type', val('d_type'));
+  fd.append('file', f);
+  try { await api(`${API}/${id}/documents`, { method: 'POST', body: fd }); await load(); openDocs(id); }
+  catch (e) { $('msg').textContent = e.message; }
+}
+
+async function delDoc(docId, simId) {
+  if (!confirm('Delete this document?')) return;
+  try { await api(`${API}/documents/${docId}`, { method: 'DELETE' }); await load(); openDocs(simId); }
+  catch (e) { alert(e.message); }
+}
+
+async function viewDoc(id) {
+  const r = await fetch(`${API}/documents/${id}/file`, { headers: authHeaders() });
+  if (!r.ok) { alert('Unable to open the file'); return; }
+  window.open(URL.createObjectURL(await r.blob()), '_blank');
+}
+
+// ---------- Import from Excel ----------
+function openImport() {
+  openM('Import SIMs from Excel', `
+    <p>Upload an Excel file (.xlsx) with these columns: <b>Mobile No, SIM Serial, Operator, Plan Type, Plan Details, Purchase Date</b>. Duplicate mobile numbers are skipped.</p>
+    <button class="btn2" onclick="downloadTemplate()">⬇ Download Template</button>
+    <div class="grid" style="margin-top:14px">
+      <label class="full">Excel File<input type="file" id="imp_file" accept=".xlsx"></label>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div id="imp_res"></div><br>
+    <button class="btn" onclick="runImport()">Import</button>`);
+}
+
+async function downloadTemplate() {
+  const r = await fetch(API + '/import-template', { headers: authHeaders() });
+  if (!r.ok) { alert('Download failed'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await r.blob());
+  a.download = 'sim_import_template.xlsx';
+  a.click();
+}
+
+async function runImport() {
+  const f = $('imp_file').files[0];
+  if (!f) { $('msg').textContent = 'Please select an Excel file first'; return; }
+  const form = new FormData();
+  form.append('file', f);
+  try {
+    const r = await api(API + '/import', { method: 'POST', body: form });
+    $('msg').textContent = '';
+    $('imp_res').innerHTML = `<p style="color:#1b7a3a"><b>${r.added} SIM(s) imported.</b></p>` +
+      (r.skipped.length ? `<p><b>${r.skipped.length} skipped:</b><br><small>${r.skipped.slice(0, 20).map(x => esc(x)).join('<br>')}</small></p>` : '');
+    load();
+  } catch (e) { $('msg').textContent = e.message; }
+}
+
+// ---------- Export ----------
+async function exportCsv() {
+  const r = await fetch(API + '/export?' + params(), { headers: authHeaders() });
+  if (!r.ok) { alert('Export failed'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await r.blob());
+  a.download = 'sim_report.xlsx';
+  a.click();
+}
+
+// ---------- Full-screen SIM detail ----------
+$('rows').addEventListener('click', e => {
+  const td = e.target.closest('td');
+  if (!td || td.cellIndex !== 0 || e.target.closest('button')) return;
+  const s = sims[td.parentElement.sectionRowIndex];
+  if (s) openDetail(s.id);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+function closeDetail() { $('dpop').classList.remove('show'); }
+
+async function openDetail(id) {
+  const s = sims.find(x => x.id === id);
+  if (!s) return;
+  $('fs_title').innerHTML = '📱 ' + esc(s.mobile_no) + ' &nbsp; ' + tag(s.status);
+  $('fs_body').innerHTML = '<p>Loading...</p>';
+  $('dpop').classList.add('show');
+
+  let docs = [], hist = [];
+  try {
+    [docs, hist] = await Promise.all([api(`${API}/${id}/documents`), api(`${API}/${id}/history`)]);
+  } catch (e) {
+    $('fs_body').innerHTML = `<p class="msg">${esc(e.message)}</p>`;
+    return;
+  }
+
+  const row = (k, v) => `<div class="kv"><span>${k}</span><b>${esc(v || '-')}</b></div>`;
+  const assigned = s.assignment_id;
+
+  const cur = assigned
+    ? row('Assigned To', s.assigned_type) +
+      (s.assigned_type === 'Employee'
+        ? row('Employee Id', s.employee_id) + row('Employee Name', s.employee_name) + row('Department', s.department)
+        : row('Site', s.site_name) + row('Site Contact', s.contact_person) + row('Location', s.location)) +
+      row('Device', s.device) + row('Issue Date', fd(s.issue_date)) + row('Remarks', s.remarks)
+    : `<p>Not assigned. Current status: ${esc(s.status)}</p>`;
+
+  const ver = assigned
+    ? `<div class="kv"><span>Result</span>${tag(s.verification_status)}</div>` +
+      row('Verified By', s.verified_by) + row('Verified On', fd(s.verified_on)) + row('Remarks', s.verification_remarks)
+    : '<p>No verification yet</p>';
+
+  const dl = docs.length
+    ? docs.map(d => `<div class="kv"><span>${esc(d.doc_type)} <small>${esc(fd(d.uploaded_on))}</small></span><button class="btn2 sm" onclick="viewDoc(${d.id})">View</button></div>`).join('')
+    : '<p>No documents uploaded yet</p>';
+
+  const ht = hist.length
+    ? `<table style="min-width:0"><thead><tr><th>Assigned To</th><th>Type</th><th>Device</th><th>Issued</th><th>Returned</th><th>Verification</th><th>Remarks</th></tr></thead><tbody>` +
+      hist.map(h => `<tr>
+        <td>${esc(h.assigned_type === 'Employee' ? (h.employee_name || '') + ' ' + (h.employee_id || '') : h.site_name + (h.location ? ' (' + h.location + ')' : '') + (h.contact_person ? ' - ' + h.contact_person : ''))}</td>
+        <td>${esc(h.assigned_type)}</td>
+        <td>${esc(h.device || '-')}</td>
+        <td>${esc(fd(h.issue_date) || '-')}</td>
+        <td>${esc(fd(h.return_date) || '-')}</td>
+        <td>${tag(h.verification_status)}</td>
+        <td>${esc(h.remarks || '-')}</td></tr>`).join('') +
+      `</tbody></table>`
+    : '<p>No assignment history yet</p>';
+
+  $('fs_body').innerHTML = `
+    <div class="dgrid">
+      <div class="dcard"><h3>SIM Details</h3>
+        ${row('Mobile No', s.mobile_no)}${row('SIM Serial', s.sim_serial)}${row('Operator', s.operator)}
+        ${row('Plan Type', s.plan_type)}${row('Plan Details', s.plan_details)}${row('Purchase Date', fd(s.purchase_date))}
+      </div>
+      <div class="dcard"><h3>Current Assignment</h3>${cur}</div>
+      <div class="dcard"><h3>Call Verification</h3>${ver}</div>
+      <div class="dcard"><h3>Documents</h3>${dl}</div>
+    </div>
+    <div class="dcard" style="margin-top:16px"><h3>Assignment History</h3><div class="tbl">${ht}</div></div>`;
+}
+
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+load();
+</script>
+</body>
+</html>

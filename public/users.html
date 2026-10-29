@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users - Stock Inventory</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#f1f4fb;color:#1d2a44}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 22px;background:#fff;border-bottom:1px solid #e3e8f3}
+.brand{display:flex;align-items:center;gap:12px;font-size:18px;color:#2f5fd0;font-weight:700}
+.brand img{height:38px}
+.wrap{padding:20px 22px;max-width:1100px;margin:0 auto}
+h3{margin:18px 0 10px;font-size:16px}
+.panel{background:#fff;border:1px solid #e3e8f3;border-radius:14px;padding:14px;margin-bottom:14px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+label{font-size:12px;color:#6b7a99;display:block;margin-bottom:3px}
+input,select{width:100%;padding:8px;border:1px solid #d5dcec;border-radius:8px;font-size:14px}
+button{background:#2f5fd0;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+button.sec{background:#e8edf8;color:#2f5fd0}
+button.red{background:#fde7e7;color:#d64545}
+.tbl{overflow-x:auto;background:#fff;border:1px solid #e3e8f3;border-radius:14px}
+table{width:100%;border-collapse:collapse}
+th{background:#eef2fb;text-align:left;padding:10px;font-size:12.5px;color:#6b7a99;white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid #e3e8f3;font-size:13.5px}
+.good{color:#1f9d63;font-weight:700}.bad{color:#d64545;font-weight:700}.warn{color:#d98200;font-weight:700}
+.empty{text-align:center;color:#6b7a99}
+.codebox{background:#fff8e1;border:1px solid #f0c75e;border-radius:12px;padding:14px;margin-bottom:14px;font-size:15px}
+.code{font-size:28px;font-weight:800;letter-spacing:4px;color:#2f5fd0;margin:0 8px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><img src="logo.png" alt="" onerror="this.remove()">Users &amp; Access</div>
+  <div>
+    <button class="sec" onclick="location.href='index.html'">← Back to Stock Inventory</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="codeBox" class="codebox" style="display:none"></div>
+
+  <h3>Password Reset Requests</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>User</th><th>Requested at</th><th>Status</th><th></th></tr></thead>
+    <tbody id="reqTb"></tbody>
+  </table></div>
+
+  <h3>Add User</h3>
+  <div class="panel"><div class="form">
+    <div><label>Username</label><input id="uName"></div>
+    <div><label>Full Name</label><input id="uFull"></div>
+    <div><label>Email (optional)</label><input id="uEmail"></div>
+    <div><label>Role</label><select id="uRole"><option value="viewer">Viewer (view only)</option><option value="admin">Admin (full access)</option></select></div>
+    <div><label>Temporary Password</label><input id="uPass" type="text"></div>
+    <div><button onclick="addUser()">+ Add User</button></div>
+  </div></div>
+
+  <h3>All Users</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+    <tbody id="userTb"></tbody>
+  </table></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let ME = null, REQS = [];
+
+async function api(path, method, body) {
+  const r = await fetch('/api/auth' + path, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.href = 'login.html'; throw new Error('login'); }
+  if (!r.ok) throw new Error(d.error || 'Error');
+  return d;
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.href = 'login.html';
+}
+
+async function init() {
+  try {
+    ME = await api('/me');
+    if (ME.role !== 'admin' || ME.must_change) { location.href = 'index.html'; return; }
+    load();
+  } catch (e) { if (e.message !== 'login') alert(e.message); }
+}
+
+async function load() {
+  try {
+    const d = await api('/users');
+    renderReq(d.requests);
+    renderUsers(d.users);
+  } catch (e) { alert(e.message); }
+}
+
+function renderReq(list) {
+  REQS = list;
+  $('reqTb').innerHTML = list.map(r =>
+    '<tr><td><b>' + esc(r.full_name) + '</b> (' + esc(r.username) + ')</td><td>' + esc(r.created_at) + '</td><td>' +
+    (r.status === 'pending' ? '<span class="warn">Waiting for approval</span>' : '<span class="good">Code given (valid till ' + esc(r.expires_at) + ')</span>') +
+    '</td><td><button onclick="approve(' + r.id + ')">' + (r.status === 'pending' ? 'Approve &amp; get code' : 'Generate new code') + '</button> ' +
+    '<button class="red" onclick="reject(' + r.id + ')">Reject</button></td></tr>'
+  ).join('') || '<tr><td colspan="4" class="empty">No reset requests</td></tr>';
+}
+
+function renderUsers(list) {
+  $('userTb').innerHTML = list.map(u =>
+    '<tr><td>' + esc(u.username) + '</td><td>' + esc(u.full_name) + '</td><td>' + esc(u.email || '-') + '</td><td>' + esc(u.role) + '</td><td>' +
+    (u.is_active ? '<span class="good">Active</span>' : '<span class="bad">Inactive</span>') + '</td><td>' +
+    (u.id === ME.id ? '<small>(you)</small>' :
+      '<button class="' + (u.is_active ? 'red' : 'sec') + '" onclick="toggle(' + u.id + ',' + (u.is_active ? 0 : 1) + ')">' + (u.is_active ? 'Deactivate' : 'Activate') + '</button>') +
+    '</td></tr>'
+  ).join('');
+}
+
+async function approve(id) {
+  try {
+    const d = await api('/requests/' + id + '/approve', 'POST');
+    const r = REQS.find(x => x.id === id);
+    const b = $('codeBox');
+    b.style.display = 'block';
+    b.innerHTML = 'Reset code for <b>' + esc(r ? r.full_name : 'user') + '</b>:<span class="code">' + esc(d.code) + '</span> Valid for 30 minutes. Tell this code to the user. It will not be shown again.';
+    load();
+  } catch (e) { alert(e.message); }
+}
+
+async function reject(id) {
+  if (!confirm('Reject this request?')) return;
+  try { await api('/requests/' + id + '/reject', 'POST'); load(); } catch (e) { alert(e.message); }
+}
+
+async function toggle(id, active) {
+  try { await api('/users/' + id + '/active', 'PUT', { active: !!active }); load(); } catch (e) { alert(e.message); }
+}
+
+async function addUser() {
+  const b = { username: $('uName').value, full_name: $('uFull').value, email: $('uEmail').value, role: $('uRole').value, password: $('uPass').value };
+  try {
+    await api('/users', 'POST', b);
+    ['uName','uFull','uEmail','uPass'].forEach(x => $(x).value = '');
+    alert('User added. They will be asked to set a new password on first login.');
+    load();
+  } catch (e) { alert(e.message); }
+}
+
+init();
+</script>
+</body>
+</html>

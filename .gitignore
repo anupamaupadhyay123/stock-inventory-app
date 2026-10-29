@@ -1,0 +1,7 @@
+﻿node_modules/
+.env
+uploads/
+public/*.backup*.html
+sim-routes.backup.js
+patch-*.js
+sim-dump.txt
