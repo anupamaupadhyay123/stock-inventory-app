@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -34,7 +34,7 @@ td{padding:9px 10px;border-top:1px solid #e3e8f3;font-size:13.5px}
 <div class="top">
   <div class="brand"><img src="logo.png" alt="" onerror="this.remove()">Users &amp; Access</div>
   <div>
-    <button class="sec" onclick="location.href='index.html'">← Back to Stock Inventory</button>
+    <button class="sec" onclick="location.href='index.html'">â† Back to Stock Inventory</button>
     <button onclick="logout()">Logout</button>
   </div>
 </div>
@@ -78,6 +78,7 @@ td{padding:9px 10px;border-top:1px solid #e3e8f3;font-size:13.5px}
 </div>
 
 <script>
+function fmt(d){ if(!d) return ''; return String(d).replace(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}:\d{2}).*/, '$3-$2-$1 $4'); }
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 let ME = null, REQS = [];
@@ -121,7 +122,7 @@ async function loadLogs() {
     const r = await fetch('/api/logs');
     const rows = await r.json();
     $('logTb').innerHTML = (Array.isArray(rows) ? rows : []).map(l =>
-      '<tr><td>' + esc(l.created_at) + '</td><td>' + esc(l.user_name) + '</td><td>' + esc(l.role) + '</td><td>' +
+      '<tr><td>' + esc(fmt(l.created_at)) + '</td><td>' + esc(l.user_name) + '</td><td>' + esc(l.role) + '</td><td>' +
       esc(l.action) + '</td><td>' + esc(l.module) + '</td><td>' + esc(l.details) + '</td></tr>'
     ).join('') || '<tr><td colspan="6" class="empty">No activity yet</td></tr>';
   } catch (e) {
@@ -132,8 +133,8 @@ async function loadLogs() {
 function renderReq(list) {
   REQS = list;
   $('reqTb').innerHTML = list.map(r =>
-    '<tr><td><b>' + esc(r.full_name) + '</b> (' + esc(r.username) + ')</td><td>' + esc(r.created_at) + '</td><td>' +
-    (r.status === 'pending' ? '<span class="warn">Waiting for approval</span>' : '<span class="good">Code given (valid till ' + esc(r.expires_at) + ')</span>') +
+    '<tr><td><b>' + esc(r.full_name) + '</b> (' + esc(r.username) + ')</td><td>' + esc(fmt(r.created_at)) + '</td><td>' +
+    (r.status === 'pending' ? '<span class="warn">Waiting for approval</span>' : '<span class="good">Code given (valid till ' + esc(fmt(r.expires_at)) + ')</span>') +
     '</td><td><button onclick="approve(' + r.id + ')">' + (r.status === 'pending' ? 'Approve &amp; get code' : 'Generate new code') + '</button> ' +
     '<button class="red" onclick="reject(' + r.id + ')">Reject</button></td></tr>'
   ).join('') || '<tr><td colspan="4" class="empty">No reset requests</td></tr>';
