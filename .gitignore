@@ -5,3 +5,12 @@ public/*.backup*.html
 sim-routes.backup.js
 patch-*.js
 sim-dump.txt
+
+.env
+node_modules/
+uploads/
+public/index.backup.html
+sim-dump.txt
+stock_data.sql
+patch-serial.js
+patch-sim.js

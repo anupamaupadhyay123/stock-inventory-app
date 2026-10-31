@@ -16,6 +16,7 @@ h3{margin:18px 0 10px;font-size:16px}
 .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
 label{font-size:12px;color:#6b7a99;display:block;margin-bottom:3px}
 input,select{width:100%;padding:8px;border:1px solid #d5dcec;border-radius:8px;font-size:14px}
+td select{padding:5px 6px;font-size:13px;min-width:150px}
 button{background:#2f5fd0;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
 button.sec{background:#e8edf8;color:#2f5fd0}
 button.red{background:#fde7e7;color:#d64545}
@@ -52,7 +53,13 @@ td{padding:9px 10px;border-top:1px solid #e3e8f3;font-size:13.5px}
     <div><label>Username</label><input id="uName"></div>
     <div><label>Full Name</label><input id="uFull"></div>
     <div><label>Email (optional)</label><input id="uEmail"></div>
-    <div><label>Role</label><select id="uRole"><option value="viewer">Viewer (view only)</option><option value="admin">Admin (full access)</option></select></div>
+    <div><label>Role</label>
+      <select id="uRole">
+        <option value="viewer">Viewer (view only)</option>
+        <option value="user">User (add / edit, no delete)</option>
+        <option value="admin">Admin (full access)</option>
+      </select>
+    </div>
     <div><label>Temporary Password</label><input id="uPass" type="text"></div>
     <div><button onclick="addUser()">+ Add User</button></div>
   </div></div>
@@ -61,6 +68,12 @@ td{padding:9px 10px;border-top:1px solid #e3e8f3;font-size:13.5px}
   <div class="tbl"><table>
     <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody id="userTb"></tbody>
+  </table></div>
+
+  <h3>Activity Log</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Details</th></tr></thead>
+    <tbody id="logTb"></tbody>
   </table></div>
 </div>
 
@@ -91,6 +104,7 @@ async function init() {
     ME = await api('/me');
     if (ME.role !== 'admin' || ME.must_change) { location.href = 'index.html'; return; }
     load();
+    loadLogs();
   } catch (e) { if (e.message !== 'login') alert(e.message); }
 }
 
@@ -100,6 +114,19 @@ async function load() {
     renderReq(d.requests);
     renderUsers(d.users);
   } catch (e) { alert(e.message); }
+}
+
+async function loadLogs() {
+  try {
+    const r = await fetch('/api/logs');
+    const rows = await r.json();
+    $('logTb').innerHTML = (Array.isArray(rows) ? rows : []).map(l =>
+      '<tr><td>' + esc(l.created_at) + '</td><td>' + esc(l.user_name) + '</td><td>' + esc(l.role) + '</td><td>' +
+      esc(l.action) + '</td><td>' + esc(l.module) + '</td><td>' + esc(l.details) + '</td></tr>'
+    ).join('') || '<tr><td colspan="6" class="empty">No activity yet</td></tr>';
+  } catch (e) {
+    $('logTb').innerHTML = '<tr><td colspan="6" class="empty">Could not load logs</td></tr>';
+  }
 }
 
 function renderReq(list) {
@@ -112,14 +139,29 @@ function renderReq(list) {
   ).join('') || '<tr><td colspan="4" class="empty">No reset requests</td></tr>';
 }
 
+function roleSelect(u) {
+  const opts = [['viewer', 'Viewer (view only)'], ['user', 'User (add / edit, no delete)'], ['admin', 'Admin (full access)']];
+  return '<select onchange="changeRole(' + u.id + ', this.value)">' +
+    opts.map(o => '<option value="' + o[0] + '"' + (u.role === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
+    '</select>';
+}
+
 function renderUsers(list) {
   $('userTb').innerHTML = list.map(u =>
-    '<tr><td>' + esc(u.username) + '</td><td>' + esc(u.full_name) + '</td><td>' + esc(u.email || '-') + '</td><td>' + esc(u.role) + '</td><td>' +
+    '<tr><td>' + esc(u.username) + '</td><td>' + esc(u.full_name) + '</td><td>' + esc(u.email || '-') + '</td><td>' +
+    (u.id === ME.id ? esc(u.role) : roleSelect(u)) + '</td><td>' +
     (u.is_active ? '<span class="good">Active</span>' : '<span class="bad">Inactive</span>') + '</td><td>' +
     (u.id === ME.id ? '<small>(you)</small>' :
       '<button class="' + (u.is_active ? 'red' : 'sec') + '" onclick="toggle(' + u.id + ',' + (u.is_active ? 0 : 1) + ')">' + (u.is_active ? 'Deactivate' : 'Activate') + '</button>') +
     '</td></tr>'
   ).join('');
+}
+
+async function changeRole(id, role) {
+  try {
+    await api('/users/' + id + '/role', 'PUT', { role: role });
+    load();
+  } catch (e) { alert(e.message); load(); }
 }
 
 async function approve(id) {

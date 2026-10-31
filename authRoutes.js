@@ -6,6 +6,7 @@ const crypto = require('crypto');
 module.exports = function (pool) {
   const SECRET = process.env.JWT_SECRET || 'stock-inventory-dev-secret';
   const router = express.Router();
+  const ROLES = ['admin', 'user', 'viewer'];
 
   const wrap = fn => (req, res, next) => fn(req, res, next).catch(e => {
     console.error(e);
@@ -28,7 +29,7 @@ module.exports = function (pool) {
   const setCookie = (res, token) => res.setHeader('Set-Cookie', 'token=' + encodeURIComponent(token) + '; HttpOnly; Path=/; SameSite=Strict; Max-Age=' + (8 * 3600));
   const clearCookie = res => res.setHeader('Set-Cookie', 'token=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0');
 
-  // Logged-in user ko cookie se pehchanta hai
+  // Identifies the logged-in user from the cookie
   const requireAuth = wrap(async (req, res, next) => {
     const t = readCookie(req, 'token');
     if (!t) return bad(res, 'Please login', 401);
@@ -46,11 +47,18 @@ module.exports = function (pool) {
     next();
   };
 
-  // Stock ke saare /api routes yahan se guzarte hain
+  // All stock /api routes pass through here
+  // admin: everything | user: add and edit, no delete | viewer: view only
   const guard = [requireAuth, (req, res, next) => {
     if (req.user.must_change) return bad(res, 'Please set a new password first', 403);
-    if (req.method !== 'GET' && req.user.role !== 'admin') return bad(res, 'View only access: you cannot change data', 403);
-    next();
+    const role = req.user.role;
+    if (role === 'admin') return next();
+    if (req.method === 'GET') return next();
+    if (role === 'user') {
+      if (req.method === 'DELETE') return bad(res, 'You do not have permission to delete', 403);
+      return next();
+    }
+    return bad(res, 'View only access: you cannot change data', 403);
   }];
 
   // ---------- Login ----------
@@ -102,7 +110,7 @@ module.exports = function (pool) {
     res.json({ ok: true, message: 'Request sent. Ask the admin (IT) for your reset code.' });
   }));
 
-  // ---------- Reset password (admin ka diya code + naya password) ----------
+  // ---------- Reset password (code given by admin + new password) ----------
   router.post('/reset', wrap(async (req, res) => {
     const username = cleanUser(req.body.username);
     const code = String(req.body.code || '').trim();
@@ -127,7 +135,7 @@ module.exports = function (pool) {
     res.json({ ok: true });
   }));
 
-  // ---------- Admin: users aur reset requests ----------
+  // ---------- Admin: users and reset requests ----------
   router.get('/users', requireAuth, requireAdmin, wrap(async (req, res) => {
     const [users] = await pool.query('SELECT id, username, full_name, email, role, is_active, created_at FROM users ORDER BY id');
     const [requests] = await pool.query(
@@ -139,7 +147,7 @@ module.exports = function (pool) {
     const b = req.body;
     const username = cleanUser(b.username);
     const name = String(b.full_name || '').trim();
-    const role = b.role === 'admin' ? 'admin' : 'viewer';
+    const role = ROLES.includes(b.role) ? b.role : 'viewer';
     if (!/^[a-z0-9._-]{3,30}$/.test(username)) return bad(res, 'Username: 3-30 characters (a-z, 0-9, . _ -)');
     if (!name) return bad(res, 'Enter full name');
     if (!strongEnough(b.password)) return bad(res, PW_MSG);
@@ -147,6 +155,17 @@ module.exports = function (pool) {
     if (ex) return bad(res, 'Username already exists');
     await pool.query('INSERT INTO users (username, full_name, email, password_hash, role, must_change) VALUES (?,?,?,?,?,1)',
       [username, name, String(b.email || '').trim() || null, await bcrypt.hash(b.password, 10), role]);
+    res.json({ ok: true });
+  }));
+
+  // Change the role of an existing user
+  router.put('/users/:id/role', requireAuth, requireAdmin, wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    const role = String(req.body.role || '');
+    if (id === req.user.id) return bad(res, 'You cannot change your own role');
+    if (!ROLES.includes(role)) return bad(res, 'Invalid role');
+    const [r] = await pool.query('UPDATE users SET role=? WHERE id=?', [role, id]);
+    if (!r.affectedRows) return bad(res, 'User not found');
     res.json({ ok: true });
   }));
 
@@ -171,7 +190,7 @@ module.exports = function (pool) {
     res.json({ ok: true });
   }));
 
-  // ---------- Pehla admin (sirf jab koi user na ho) ----------
+  // ---------- First admin (only when there are no users) ----------
   (async () => {
     try {
       const [[c]] = await pool.query('SELECT COUNT(*) AS n FROM users');

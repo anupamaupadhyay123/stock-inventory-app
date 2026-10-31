@@ -1,3 +1,4 @@
+const { can, logActivity } = require('./permissions');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -99,7 +100,7 @@ app.get('/api/stockin', wrap(async (req, res) => {
   res.json(rows);
 }));
 
-app.post('/api/stockin', wrap(async (req, res) => {
+app.post('/api/stockin', can('add'), wrap(async (req, res) => {
   const b = req.body;
   const code = (b.item_code || '').trim();
   const name = (b.item_name || '').trim();
@@ -111,12 +112,13 @@ app.post('/api/stockin', wrap(async (req, res) => {
     'INSERT INTO items (item_code, item_name, category) VALUES (?,?,?) ON DUPLICATE KEY UPDATE item_name=VALUES(item_name), category=VALUES(category)',
     [code, name, (b.category || '').trim() || null]);
   await pool.query(
-    'INSERT INTO stock_in (in_date, item_code, item_name, category, vendor, qty_received, unit_cost, location) VALUES (?,?,?,?,?,?,?,?)',
-    [b.in_date, code, name, (b.category || '').trim() || null, (b.vendor || '').trim() || null, qty, cost, (b.location || '').trim() || null]);
+    'INSERT INTO stock_in (in_date, item_code, item_name, category, vendor, qty_received, unit_cost, location, serial_no) VALUES (?,?,?,?,?,?,?,?,?)',
+    [b.in_date, code, name, (b.category || '').trim() || null, (b.vendor || '').trim() || null, qty, cost, (b.location || '').trim() || null, (b.serial_no || '').trim() || null]);
+  await logActivity(pool, req, 'ADD', 'Stock In', code + ' - ' + name + ' x' + qty);
   res.json({ ok: true });
 }));
 
-app.put('/api/stockin/:id', wrap(async (req, res) => {
+app.put('/api/stockin/:id', can('edit'), wrap(async (req, res) => {
   const b = req.body;
   const name = (b.item_name || '').trim();
   const qty = parseInt(b.qty_received, 10);
@@ -129,9 +131,10 @@ app.put('/api/stockin/:id', wrap(async (req, res) => {
   const cur = await currentStock(r.item_code);
   if (cur - r.qty_received + qty < 0) return bad(res, 'Cannot reduce: items of this entry are already issued');
   await pool.query(
-    'UPDATE stock_in SET in_date=?, item_name=?, category=?, vendor=?, qty_received=?, unit_cost=?, location=? WHERE id=?',
-    [b.in_date, name, cat, (b.vendor || '').trim() || null, qty, cost, (b.location || '').trim() || null, req.params.id]);
+    'UPDATE stock_in SET in_date=?, item_name=?, category=?, vendor=?, qty_received=?, unit_cost=?, location=?, serial_no=? WHERE id=?',
+    [b.in_date, name, cat, (b.vendor || '').trim() || null, qty, cost, (b.location || '').trim() || null, (b.serial_no || '').trim() || null, req.params.id]);
   await pool.query('UPDATE items SET item_name=?, category=? WHERE item_code=?', [name, cat, r.item_code]);
+  await logActivity(pool, req, 'EDIT', 'Stock In', r.item_code + ' - ' + name + ' x' + qty);
   res.json({ ok: true });
 }));
 
@@ -151,7 +154,7 @@ app.get('/api/stockin/template', wrap(async (req, res) => {
   res.end();
 }));
 
-app.post('/api/stockin/import', wrap(async (req, res) => {
+app.post('/api/stockin/import', can('add'), wrap(async (req, res) => {
   const buf = Buffer.from(req.body.file || '', 'base64');
   const wb = new ExcelJS.Workbook();
   try { await wb.xlsx.load(buf); } catch (e) { return bad(res, 'Invalid file. Please use .xlsx Excel file'); }
@@ -222,10 +225,11 @@ app.post('/api/stockin/import', wrap(async (req, res) => {
   } finally {
     conn.release();
   }
+  await logActivity(pool, req, 'IMPORT', 'Stock In', rows.length + ' rows imported from Excel');
   res.json({ ok: true, count: rows.length });
 }));
 
-app.delete('/api/stockin/:id', wrap(async (req, res) => {
+app.delete('/api/stockin/:id', can('delete'), wrap(async (req, res) => {
   const [[r]] = await pool.query('SELECT item_code, qty_received FROM stock_in WHERE id=?', [req.params.id]);
   if (!r) return res.status(404).json({ error: 'Not found' });
   const cur = await currentStock(r.item_code);
@@ -234,6 +238,7 @@ app.delete('/api/stockin/:id', wrap(async (req, res) => {
   await pool.query(
     'DELETE FROM items WHERE item_code=? AND NOT EXISTS (SELECT 1 FROM stock_in WHERE item_code=?) AND NOT EXISTS (SELECT 1 FROM stock_out WHERE item_code=?)',
     [r.item_code, r.item_code, r.item_code]);
+  await logActivity(pool, req, 'DELETE', 'Stock In', r.item_code + ' x' + r.qty_received);
   res.json({ ok: true });
 }));
 
@@ -243,7 +248,7 @@ app.get('/api/stockout', wrap(async (req, res) => {
   res.json(rows);
 }));
 
-app.post('/api/stockout', wrap(async (req, res) => {
+app.post('/api/stockout', can('add'), wrap(async (req, res) => {
   const b = req.body;
   const code = (b.item_code || '').trim();
   const qty = parseInt(b.qty, 10);
@@ -256,14 +261,15 @@ app.post('/api/stockout', wrap(async (req, res) => {
   if (!item) return bad(res, 'Item Code not found. Add it in Stock In first.');
   const cur = await currentStock(code);
   if (qty > cur) return bad(res, 'Only ' + cur + ' in stock');
-await pool.query(
-    'INSERT INTO stock_out (out_date, employee_id, employee_name, department, item_code, item_name, qty, location, remarks, return_required, return_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+  await pool.query(
+    'INSERT INTO stock_out (out_date, employee_id, employee_name, department, item_code, item_name, qty, location, remarks, return_required, return_date, serial_no) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
     [b.out_date, b.employee_id.trim(), b.employee_name.trim(), (b.department || '').trim() || null, code, item.item_name, qty,
-     (b.location || '').trim() || null, (b.remarks || '').trim() || null, rr, rr ? b.return_date : null]);
+     (b.location || '').trim() || null, (b.remarks || '').trim() || null, rr, rr ? b.return_date : null, (b.serial_no || '').trim() || null]);
+  await logActivity(pool, req, 'ADD', 'Stock Out', code + ' x' + qty + ' to ' + b.employee_name.trim());
   res.json({ ok: true });
 }));
 
-app.put('/api/stockout/:id', wrap(async (req, res) => {
+app.put('/api/stockout/:id', can('edit'), wrap(async (req, res) => {
   const b = req.body;
   const qty = parseInt(b.qty, 10);
   const rr = b.return_required ? 1 : 0;
@@ -277,27 +283,35 @@ app.put('/api/stockout/:id', wrap(async (req, res) => {
   const cur = await currentStock(o.item_code);
   if (cur + o.qty - qty < 0) return bad(res, 'Only ' + (cur + o.qty) + ' available for this item');
   await pool.query(
-    'UPDATE stock_out SET out_date=?, employee_id=?, employee_name=?, department=?, qty=?, location=?, remarks=?, return_required=?, return_date=? WHERE id=?',
+    'UPDATE stock_out SET out_date=?, employee_id=?, employee_name=?, department=?, qty=?, location=?, remarks=?, return_required=?, return_date=?, serial_no=? WHERE id=?',
     [b.out_date, b.employee_id.trim(), b.employee_name.trim(), (b.department || '').trim() || null, qty,
-     (b.location || '').trim() || null, (b.remarks || '').trim() || null, rr, rr ? b.return_date : null, req.params.id]);
+     (b.location || '').trim() || null, (b.remarks || '').trim() || null, rr, rr ? b.return_date : null, (b.serial_no || '').trim() || null, req.params.id]);
+  await logActivity(pool, req, 'EDIT', 'Stock Out', o.item_code + ' x' + qty + ' to ' + b.employee_name.trim());
   res.json({ ok: true });
 }));
 
-app.post('/api/stockout/:id/return', wrap(async (req, res) => {
+app.post('/api/stockout/:id/return', can('edit'), wrap(async (req, res) => {
   const [[r]] = await pool.query('SELECT qty, returned_qty FROM stock_out WHERE id=?', [req.params.id]);
   if (!r) return res.status(404).json({ error: 'Not found' });
   const pending = r.qty - r.returned_qty;
   const q = parseInt(req.body.qty, 10);
   if (!(q > 0) || q > pending) return bad(res, 'Return qty must be between 1 and ' + pending);
   await pool.query('UPDATE stock_out SET returned_qty = returned_qty + ?, returned_at = NOW() WHERE id=?', [q, req.params.id]);
+  await logActivity(pool, req, 'RETURN', 'Stock Out', 'id ' + req.params.id + ' returned x' + q);
   res.json({ ok: true });
 }));
 
-app.delete('/api/stockout/:id', wrap(async (req, res) => {
+app.delete('/api/stockout/:id', can('delete'), wrap(async (req, res) => {
   await pool.query('DELETE FROM stock_out WHERE id=?', [req.params.id]);
+  await logActivity(pool, req, 'DELETE', 'Stock Out', 'id ' + req.params.id);
   res.json({ ok: true });
 }));
 
+// ---------- Activity Logs (admin only) ----------
+app.get('/api/logs', can('logs'), wrap(async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM activity_logs ORDER BY id DESC LIMIT 500');
+  res.json(rows);
+}));
 // ---------- Summary ----------
 app.get('/api/summary', wrap(async (req, res) => {
   res.json(await getSummary());

@@ -118,6 +118,7 @@ td{padding:9px 10px;border-top:1px solid var(--line);font-size:13.5px;vertical-a
     <div><label>Qty Received</label><input id="inQty" type="number" min="1" value="1"></div>
     <div><label>Unit Cost</label><input id="inCost" type="number" min="0" step="0.01"></div>
     <div><label>Location</label><input id="inLoc"></div>
+    <div><label>Serial No (optional)</label><input id="inSerial"></div>
     <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center">
       <button class="btn" id="inBtn" onclick="addIn()">+ Add Stock</button>
       <button class="btn sec" id="inCancel" style="display:none" onclick="cancelIn()">Cancel</button>
@@ -127,7 +128,7 @@ td{padding:9px 10px;border-top:1px solid var(--line);font-size:13.5px;vertical-a
     </div>
   </div>
   <div class="tbl"><table>
-    <thead><tr><th>#</th><th>Date</th><th>Item Code</th><th>Item Name</th><th>Category</th><th>Vendor</th><th>Qty</th><th>Unit Cost</th><th>Total</th><th>Location</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>Date</th><th>Item Code</th><th>Item Name</th><th>Category</th><th>Vendor</th><th>Qty</th><th>Unit Cost</th><th>Total</th><th>Location</th><th>Serial No</th><th></th></tr></thead>
     <tbody id="inTb"></tbody>
   </table></div>
 </div>
@@ -143,6 +144,7 @@ td{padding:9px 10px;border-top:1px solid var(--line);font-size:13.5px;vertical-a
     <div><label>Department</label><input id="outDept"></div>
     <div><label>Qty</label><input id="outQty" type="number" min="1" value="1"></div>
     <div><label>Location</label><input id="outLoc"></div>
+    <div><label>Serial No (optional)</label><input id="outSerial"></div>
     <div><label>Remarks</label><input id="outRemarks"></div>
     <div><label>Return Required</label>
       <select id="outRR" onchange="toggleRR()"><option value="0">No</option><option value="1">Yes</option></select></div>
@@ -156,7 +158,7 @@ td{padding:9px 10px;border-top:1px solid var(--line);font-size:13.5px;vertical-a
     <input id="outSearch" placeholder="Search employee, item, remarks..." oninput="renderOut()">
   </div>
   <div class="tbl"><table>
-    <thead><tr><th>#</th><th>Date</th><th>Employee Id</th><th>Employee</th><th>Department</th><th>Item Code</th><th>Item</th><th>Qty</th><th>Location</th><th>Remarks</th><th>Return</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>Date</th><th>Employee Id</th><th>Employee</th><th>Department</th><th>Item Code</th><th>Item</th><th>Serial No</th><th>Qty</th><th>Location</th><th>Remarks</th><th>Return</th><th></th></tr></thead>
     <tbody id="outTb"></tbody>
   </table></div>
 </div>
@@ -331,8 +333,8 @@ function renderIn() {
   $('inTb').innerHTML = INS.map((r, i) =>
     '<tr><td>' + (i + 1) + '</td><td>' + fmt(r.in_date) + '</td><td>' + esc(r.item_code) + '</td><td><b>' + esc(r.item_name) + '</b></td><td>' + esc(r.category) +
     '</td><td>' + esc(r.vendor) + '</td><td>' + r.qty_received + '</td><td>' + Number(r.unit_cost).toFixed(2) + '</td><td>' + (r.qty_received * r.unit_cost).toFixed(2) +
-    '</td><td>' + esc(r.location) + '</td><td style="white-space:nowrap"><button class="sm" onclick="editIn(' + r.id + ')">Edit</button> <button class="del" title="Delete" onclick="delIn(' + r.id + ')">✕</button></td></tr>'
-  ).join('') || '<tr><td colspan="11" class="empty">No stock added yet</td></tr>';
+    '</td><td>' + esc(r.location) + '</td><td>' + esc(r.serial_no) + '</td><td style="white-space:nowrap"><button class="sm" onclick="editIn(' + r.id + ')">Edit</button> <button class="del" title="Delete" onclick="delIn(' + r.id + ')">✕</button></td></tr>'
+  ).join('') || '<tr><td colspan="12" class="empty">No stock added yet</td></tr>';
 }
 
 function renderOut() {
@@ -348,9 +350,9 @@ function renderOut() {
       if (p > 0) ret += ' <button class="sm" onclick="returnOut(' + o.id + ',' + p + ')">Return</button>';
     }
     return '<tr><td>' + (i + 1) + '</td><td>' + fmt(o.out_date) + '</td><td>' + esc(o.employee_id) + '</td><td>' + esc(o.employee_name) +
-      '</td><td>' + esc(o.department) + '</td><td>' + esc(o.item_code) + '</td><td>' + esc(o.item_name) + '</td><td>' + o.qty + '</td><td>' + esc(o.location) +
+      '</td><td>' + esc(o.department) + '</td><td>' + esc(o.item_code) + '</td><td>' + esc(o.item_name) + '</td><td>' + esc(o.serial_no) + '</td><td>' + o.qty + '</td><td>' + esc(o.location) +
       '</td><td>' + esc(o.remarks) + '</td><td>' + ret + '</td><td style="white-space:nowrap"><button class="sm" onclick="editOut(' + o.id + ')">Edit</button> <button class="del" title="Delete" onclick="delOut(' + o.id + ')">✕</button></td></tr>';
-  }).join('') || '<tr><td colspan="12" class="empty">No items issued yet</td></tr>';
+  }).join('') || '<tr><td colspan="13" class="empty">No items issued yet</td></tr>';
 }
 
 function renderSum() {
@@ -387,7 +389,7 @@ function toggleRR() {
 // ---------- Stock In: add / edit / import ----------
 async function addIn() {
   const b = { in_date: val('inDate'), item_code: val('inCode'), item_name: val('inName'), category: val('inCat'),
-    vendor: val('inVendor'), qty_received: val('inQty'), unit_cost: val('inCost'), location: val('inLoc') };
+    vendor: val('inVendor'), qty_received: val('inQty'), unit_cost: val('inCost'), location: val('inLoc'), serial_no: val('inSerial') };
   try {
     if (editInId) await api('/stockin/' + editInId, 'PUT', b);
     else await api('/stockin', 'POST', b);
@@ -398,7 +400,7 @@ async function addIn() {
 
 function cancelIn() {
   editInId = null;
-  ['inCode','inName','inCat','inVendor','inCost','inLoc'].forEach(x => $(x).value = '');
+  ['inCode','inName','inCat','inVendor','inCost','inLoc','inSerial'].forEach(x => $(x).value = '');
   $('inQty').value = '1';
   $('inDate').value = today();
   $('inCode').disabled = false;
@@ -418,6 +420,7 @@ function editIn(id) {
   $('inQty').value = r.qty_received;
   $('inCost').value = r.unit_cost;
   $('inLoc').value = r.location || '';
+  $('inSerial').value = r.serial_no || '';
   $('inBtn').textContent = 'Update Stock';
   $('inCancel').style.display = '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -443,7 +446,7 @@ function importExcel(inp) {
 async function addOut() {
   const b = { out_date: val('outDate'), item_code: val('outCode'), employee_id: val('outEmpId'), employee_name: val('outEmp'),
     department: val('outDept'), qty: val('outQty'), location: val('outLoc'), remarks: val('outRemarks'),
-    return_required: $('outRR').value === '1', return_date: val('outRetDate') };
+    return_required: $('outRR').value === '1', return_date: val('outRetDate'), serial_no: val('outSerial') };
   try {
     if (editOutId) await api('/stockout/' + editOutId, 'PUT', b);
     else await api('/stockout', 'POST', b);
@@ -454,7 +457,7 @@ async function addOut() {
 
 function cancelOut() {
   editOutId = null;
-  ['outCode','outName','outEmpId','outEmp','outDept','outLoc','outRemarks','outRetDate'].forEach(x => $(x).value = '');
+  ['outCode','outName','outEmpId','outEmp','outDept','outLoc','outRemarks','outRetDate','outSerial'].forEach(x => $(x).value = '');
   $('outQty').value = '1'; $('outRR').value = '0'; $('outAvail').textContent = '';
   $('outDate').value = today();
   $('outCode').disabled = false;
@@ -476,6 +479,7 @@ function editOut(id) {
   $('outQty').value = o.qty;
   $('outLoc').value = o.location || '';
   $('outRemarks').value = o.remarks || '';
+  $('outSerial').value = o.serial_no || '';
   $('outRR').value = o.return_required == 1 ? '1' : '0';
   toggleRR();
   $('outRetDate').value = o.return_date ? String(o.return_date).slice(0, 10) : '';
